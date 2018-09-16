@@ -7,6 +7,7 @@ import math
 import random
 from PIL import Image, ImageDraw
 #from image import create_image, draw_square, save_image
+#Requires that ratios for each group result in integers
 
 #
 def segMeasure(grid, numColors, numColored):
@@ -36,9 +37,8 @@ def segMeasure(grid, numColors, numColored):
 def createGrid(size, numSquares, numEmpty, groups):
    orderedDots = ['e']*numEmpty
    for group in groups.keys():
-       numDots = groups[group][0]*numSquares
+       numDots = groups[group][0]*(numSquares-numEmpty)
        orderedDots = orderedDots + group*numDots
-
    grid = []
    empties = []
    #appends empty lists to dot grid array for each row
@@ -65,18 +65,17 @@ def checkNeighbors(dots, dotLoc, dist, happyRat):
         return False
     return True
 
-def simulate(size, EtoC, RtoB, dist, happyRat, iteration):
+#Assumes ratios give integers for given grid
+def simulate(size, EtoC, groups, dist, happyRat, iteration):
     numSquares = size[0]*size[1]
     numEmpty = math.floor(EtoC*numSquares)
-    numRed = math.floor(RtoB*(numSquares - numEmpty))
-    numBlue = numSquares - numEmpty - numRed
-    numColors = {'r': numRed, 'b': numBlue}
-    gAndE = createGrid(size, numSquares, numEmpty, [numRed, numBlue])
+    gAndE = createGrid(size,numSquares,numEmpty, groups)
     grid = gAndE[0]
     empties = gAndE[1]
-    return simHelp(grid, empties, dist, happyRat, numSquares, numColors, iteration)
+    return simHelp(grid, empties, dist, happyRat, numSquares, groups, iteration)
 
-def simHelp(grid, empties, dist, happyRat, numSquares, numColors, iteration):
+
+def simHelp(grid, empties, dist, happyRat, numSquares, groups, iteration):
     drawGrid(grid)
     unhappy = []
     for i in range(len(grid)):
@@ -84,7 +83,7 @@ def simHelp(grid, empties, dist, happyRat, numSquares, numColors, iteration):
             if grid[i][j] != 'e' and not checkNeighbors(grid, (i,j), dist, happyRat):
                 unhappy.append((i,j))
     if len(unhappy) == 0 or iteration >10:
-        print(segMeasure(grid, numColors, numSquares-len(empties)))
+        print(segMeasure(grid, groups, numSquares-len(empties)))
         return False
     else:
         for cell in unhappy:
@@ -93,9 +92,9 @@ def simHelp(grid, empties, dist, happyRat, numSquares, numColors, iteration):
             grid[empties[x][0]][empties[x][1]] = grid[cell[0]][cell[1]]
             grid[cell[0]][cell[1]] = 'e'
             empties[x] = (cell[0],cell[1])   
-        print(segMeasure(grid, numColors, numSquares-len(empties)))
+        ##print(segMeasure(grid, groups, numSquares-len(empties)))
         iteration = iteration + 1
-        simHelp(grid, empties, dist, happyRat, numSquares, numColors, iteration)
+        simHelp(grid, empties, dist, happyRat, numSquares, groups, iteration)
 
     
 # =============================================================================
@@ -123,11 +122,15 @@ def simHelp(grid, empties, dist, happyRat, numSquares, numColors, iteration):
 
 def drawGrid(grid):   
     SWATCH_WIDTH=32
-    R_COLOR=(228, 28, 28)
-    B_COLOR=(28, 48, 228)
-    E_COLOR= (255,255,255)
+    R_COLOR=(228, 28, 28) #red, asian 
+    B_COLOR=(28, 48, 228) #blue, white people
+    G_COlOR = (16,163,38)#green, black people
+    O_COLOR = (229,155,18) #orange, hispanic people
+    E_COLOR= (255,255,255) #empty, white
     imgR = Image.new('RGB', (SWATCH_WIDTH, SWATCH_WIDTH), color = R_COLOR)
     imgB = Image.new('RGB', (SWATCH_WIDTH, SWATCH_WIDTH), color = B_COLOR)
+    imgG = Image.new('RGB', (SWATCH_WIDTH, SWATCH_WIDTH), color = G_COLOR)
+    imgO = Image.new('RGB', (SWATCH_WIDTH, SWATCH_WIDTH), color = O_COLOR)
     img = Image.new('RGB', (SWATCH_WIDTH*len(grid[0]), SWATCH_WIDTH*len(grid)), color = E_COLOR)
     imgD = ImageDraw.Draw(img)
     #im = create_image(SWATCH_WIDTH*len(grid),SWATCH_WIDTH*len(grid[0]))
@@ -138,6 +141,10 @@ def drawGrid(grid):
                 color = R_COLOR
                 img.paste(imgR, (32*j, 32*i))
             elif grid[i][j] == "b":
+                img.paste(imgB, (32*j, 32*i))
+            elif grid[i][j] == "g":
+                img.paste(imgB, (32*j, 32*i))
+            elif grid[i][j] == "o":
                 img.paste(imgB, (32*j, 32*i))
             else:
                 pass

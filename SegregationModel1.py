@@ -68,10 +68,10 @@ def checkNeighbors(dots, dotLoc, dist, happyRat):
         return False
     return True
 
-def simulate(size, EtoC, RtoC, BtoC, GtoC, OtoC, dist, happyRat, iteration):
+#Takes tuple for grid size (rows, columns), empty-to-colored ratio
+def simulate(size, EtoC, groups, dist, happyRat, iteration):
     numSquares = size[0]*size[1]
     numEmpty = math.floor(EtoC*numSquares)
-    groups = {'r': [RtoC], 'b': [BtoC], 'g': [GtoC], 'o': [OtoC]}
     gAndE = createGrid(size, numSquares, numEmpty, groups)
     grid = gAndE[0]
     empties = gAndE[1]
@@ -81,9 +81,11 @@ def simHelp(grid, empties, dist, happyRat, numSquares, groups, iteration):
     drawGrid(grid)
     unhappy = []
     for i in range(len(grid)):
-        for j in range(len(grid[0])):
-            if grid[i][j] != 'e' and not checkNeighbors(grid, (i,j), dist, happyRat):
-                unhappy.append((i,j))
+        for j in range(len(grid[0])): ##iterates through squares to check which ones are unhappy agents
+            if grid[i][j] != 'e' :
+                myHappyRat = groups[grid[i][j]][1]
+                if not checkNeighbors(grid, (i,j), dist, myHappyRat): 
+                    unhappy.append((i,j))
     if len(unhappy) == 0 or iteration > 50:
         print(segMeasure(grid, groups, numSquares-len(empties)))
         return False
@@ -157,7 +159,7 @@ def drawGrid(grid):
             #            SWATCH_WIDTH-2, color)
     #save_image(im, filename)
 
-simulate([36, 36], .25, .25, .25, .25, .25, 1, .5, 0)
+simulate([36, 36], .25, {'r': [.25,.2], 'b': [.25,.2], 'g': [.25,.5], 'o': [.25,.5]}, 1, .5, 0)
 
 
 

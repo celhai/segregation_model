@@ -5,7 +5,7 @@ Created on Tue Sep 11 11:52:53 2018
 """
 import math
 import random
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 #from image import create_image, draw_square, save_image
 
 #
@@ -24,14 +24,15 @@ def segMeasure(grid, groups, numColored):
             count=0
             vacant=0
             for key in keys:
-                for k in range(i-bigDist+1, i+bigDist):
-                    for l in range(j-bigDist+1, j+bigDist):
+                for k in range(bigDist*i, bigDist*(i+1) - 1):
+                    for l in range(bigDist*j, bigDist*(j+1) - 1):
                         if key == grid[k][l]:
                             count = count + 1
                         elif grid[k][l] == 'e':
                             vacant = vacant + 1
-                measure += abs((count/(144-vacant))/(groups[key][0]*numSquares/numColored)-1)
-    return measure/4
+                if vacant != 144:
+                    measure += abs((count/(144-vacant))/(groups[key][0]*numSquares/numColored)-1)
+    return round(measure/4, 5)
 
 ## Takes inputs of size (grid size as a tuple of # rows, # columns), numSquares
     ##(#rows*#cols), numEmpty (numSquares*empty-to-color ratio), and groups
@@ -64,7 +65,7 @@ def checkNeighbors(dots, dotLoc, dist, happyRat):
         for j in range(max(0, dotLoc[1]-dist), min(len(dots[0])-1, dotLoc[1]+dist)+1):
             if i != dotLoc[0] or i != j:
                 neighbors = neighbors + dots[i][j]
-    if neighbors.count(dotType)/(len(neighbors) - neighbors.count('e')) < happyRat:
+    if neighbors.count('e') != len(neighbors) and neighbors.count(dotType)/(len(neighbors) - neighbors.count('e')) < happyRat:
         return False
     return True
 
@@ -78,16 +79,17 @@ def simulate(size, EtoC, groups, dist, happyRat, iteration):
     return simHelp(grid, empties, dist, happyRat, numSquares, groups, iteration)
 
 def simHelp(grid, empties, dist, happyRat, numSquares, groups, iteration):
-    drawGrid(grid)
     unhappy = []
     for i in range(len(grid)):
         for j in range(len(grid[0])): ##iterates through squares to check which ones are unhappy agents
             if grid[i][j] != 'e' :
                 myHappyRat = groups[grid[i][j]][1]
-                if not checkNeighbors(grid, (i,j), dist, myHappyRat): 
+                if not checkNeighbors(grid, (i,j), dist, myHappyRat):
                     unhappy.append((i,j))
+    segMeas = segMeasure(grid, groups, numSquares-len(empties))
+    drawGrid(grid, segMeas, iteration, round((1-len(unhappy)/numSquares)*100, 5))
     if len(unhappy) == 0 or iteration > 50:
-        print(segMeasure(grid, groups, numSquares-len(empties)))
+        print(segMeas)
         return False
     else:
         for cell in unhappy:
@@ -96,7 +98,7 @@ def simHelp(grid, empties, dist, happyRat, numSquares, groups, iteration):
             grid[empties[x][0]][empties[x][1]] = grid[cell[0]][cell[1]]
             grid[cell[0]][cell[1]] = 'e'
             empties[x] = (cell[0],cell[1])
-        print(segMeasure(grid, groups, numSquares-len(empties)))
+        #print(segMeasure(grid, groups, numSquares-len(empties)))
         iteration = iteration + 1
         simHelp(grid, empties, dist, happyRat, numSquares, groups, iteration)
 
@@ -124,7 +126,7 @@ def simHelp(grid, empties, dist, happyRat, numSquares, groups, iteration):
 # i selects row, j selects column
 
 
-def drawGrid(grid):
+def drawGrid(grid, segMeas, iteration, happyPerc):
     SWATCH_WIDTH=32
     R_COLOR=(228, 28, 28) #red, asian
     B_COLOR=(28, 48, 228) #blue, white people
@@ -135,8 +137,10 @@ def drawGrid(grid):
     imgB = Image.new('RGB', (SWATCH_WIDTH, SWATCH_WIDTH), color = B_COLOR)
     imgG = Image.new('RGB', (SWATCH_WIDTH, SWATCH_WIDTH), color = G_COLOR)
     imgO = Image.new('RGB', (SWATCH_WIDTH, SWATCH_WIDTH), color = O_COLOR)
-    img = Image.new('RGB', (SWATCH_WIDTH*len(grid[0]), SWATCH_WIDTH*len(grid)), color = E_COLOR)
+    img = Image.new('RGB', (SWATCH_WIDTH*len(grid[0])+400, SWATCH_WIDTH*len(grid)), color = E_COLOR)
     imgD = ImageDraw.Draw(img)
+    fnt = ImageFont.truetype('/Library/Fonts/Arial.ttf', 30)
+
     #im = create_image(SWATCH_WIDTH*len(grid),SWATCH_WIDTH*len(grid[0]))
 
     for i in range(len(grid)):
@@ -152,14 +156,16 @@ def drawGrid(grid):
                 img.paste(imgO, (32*j, 32*i))
             else:
                 pass
-
+    imgD.text((SWATCH_WIDTH*len(grid[0])+10, 50), "Segregation: " + str(segMeas), font=fnt, fill=(0, 0, 0))
+    imgD.text((SWATCH_WIDTH*len(grid[0])+10, 10), "Iteration: " + str(iteration), font=fnt, fill=(0, 0, 0))
+    imgD.text((SWATCH_WIDTH*len(grid[0])+10, 90), "Percent Happy: " + str(happyPerc), font=fnt, fill=(0, 0, 0))
     img.show()
     #img.save('pil_text.png')
             #draw_square(im, j*SWATCH_WIDTH,i*SWATCH_WIDTH,
             #            SWATCH_WIDTH-2, color)
     #save_image(im, filename)
 
-simulate([36, 36], .25, {'r': [.25,.2], 'b': [.25,.2], 'g': [.25,.5], 'o': [.25,.5]}, 1, .5, 0)
+simulate([96, 96], .25, {'r': [.25,.2], 'b': [.25,.2], 'g': [.25,.5], 'o': [.25,.5]}, 3, .5, 0)
 
 
 

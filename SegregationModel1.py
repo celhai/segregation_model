@@ -6,33 +6,61 @@ Created on Tue Sep 11 11:52:53 2018
 import math
 import random
 from PIL import Image, ImageDraw, ImageFont
+import matplotlib.pyplot as plt
 #from image import create_image, draw_square, save_image
 
 #
 def segMeasure(grid, groups, numColored):
 #simulation is the grid we are measuring segregation of, type is the actor type we are measuring it for
-    measure = 0
+    measurelist=[]
     count = 0#number of actors of the type we are inspecting/total number of actors
     vacant = 0
     bigDist = 12
     numSquares = len(grid)*len(grid[0])
     #iterates through neighborhood of size bigDist
     keys = groups.keys()
-
-    for i in range(0,(len(grid)-12)//12):
-        for j in range(0,(len(grid[0])-12)//12):
-            count=0
-            vacant=0
-            for key in keys:
+    for key in keys:
+        measure = 0
+        measure1 = 0
+        for i in range(0,(len(grid)-bigDist)//bigDist):
+            for j in range(0,(len(grid[0])-bigDist)//bigDist):
+                count=0
+                vacant=0
                 for k in range(bigDist*i, bigDist*(i+1) - 1):
                     for l in range(bigDist*j, bigDist*(j+1) - 1):
                         if key == grid[k][l]:
                             count = count + 1
                         elif grid[k][l] == 'e':
                             vacant = vacant + 1
-                if vacant != 144:
-                    measure += abs((count/(144-vacant))/(groups[key][0]*numSquares/numColored)-1)
-    return round(measure/4, 5)
+                if vacant != bigDist*bigDist:
+                    measure += abs((count/(bigDist*bigDist-vacant))/(groups[key][0]*numSquares/numColored)-1)
+        measurelist.append([key, round(measure/(numSquares/bigDist/bigDist), 5)])
+    return measurelist
+
+def segMeasure1(grid, groups, numColored):
+#simulation is the grid we are measuring segregation of, type is the actor type we are measuring it for
+    measurelist=[]
+    count = 0#number of actors of the type we are inspecting/total number of actors
+    vacant = 0
+    dist = 1
+    numSquares = len(grid)*len(grid[0])
+    #iterates through neighborhood of size bigDist
+    keys = groups.keys()
+    for key in keys:
+        numSame = 0
+        numEmpts = 0
+        for k in range(len(grid)):
+            for l in range(len(grid[0])):
+                if grid[k][l] == key:
+                    for i in range(max(0, k-dist), min(len(grid)-1, k+dist)+1):
+                        for j in range(max(0, l-dist), min(len(grid[0])-1, l+dist)+1):
+                            if grid[i][j] == key and (i != k or i != j):
+                                numSame += 1
+                            elif grid[i][j] == 'e':
+                                numEmpts += 1
+        measurelist.append([key, round(numSame/(numSquares*groups[key][0]*8 - numEmpts), 5)])
+
+    return measurelist
 
 ## Takes inputs of size (grid size as a tuple of # rows, # columns), numSquares
     ##(#rows*#cols), numEmpty (numSquares*empty-to-color ratio), and groups
@@ -76,10 +104,25 @@ def simulate(size, EtoC, groups, dist, happyRat, iteration):
     gAndE = createGrid(size, numSquares, numEmpty, groups)
     grid = gAndE[0]
     empties = gAndE[1]
-    return simHelp(grid, empties, dist, happyRat, numSquares, groups, iteration)
+    datas =  simHelp(grid, empties, dist, happyRat, numSquares, groups, iteration, [[],[]], [[],[]], [[],[]], [[],[]], [])
+    plt.figure(1)
+    plt.plot(list(range(len(datas[0][0]))), datas[0][0], 'r')
+    plt.plot(list(range(len(datas[1][0]))), datas[1][0], 'b')
+    plt.plot(list(range(len(datas[2][0]))), datas[2][0], 'y')
+    plt.plot(list(range(len(datas[3][0]))), datas[3][0], 'orange')
+    plt.plot(list(range(len(datas[3][0]))), datas[4], 'k')
+    plt.figure(2)
+    plt.plot(list(range(len(datas[0][1]))), datas[0][1], 'r')
+    plt.plot(list(range(len(datas[1][1]))), datas[1][1], 'b')
+    plt.plot(list(range(len(datas[2][1]))), datas[2][1], 'y')
+    plt.plot(list(range(len(datas[3][1]))), datas[3][1], 'orange')
+    plt.plot(list(range(len(datas[3][1]))), datas[4], 'k')
+    plt.show()
+    return True
 
-def simHelp(grid, empties, dist, happyRat, numSquares, groups, iteration):
+def simHelp(grid, empties, dist, happyRat, numSquares, groups, iteration, segR, segB, segY, segO, happyPercList):
     unhappy = []
+
     for i in range(len(grid)):
         for j in range(len(grid[0])): ##iterates through squares to check which ones are unhappy agents
             if grid[i][j] != 'e' :
@@ -87,10 +130,19 @@ def simHelp(grid, empties, dist, happyRat, numSquares, groups, iteration):
                 if not checkNeighbors(grid, (i,j), dist, myHappyRat):
                     unhappy.append((i,j))
     segMeas = segMeasure(grid, groups, numSquares-len(empties))
-    drawGrid(grid, segMeas, iteration, round((1-len(unhappy)/numSquares)*100, 5))
-    if len(unhappy) == 0 or iteration > 50:
-        print(segMeas)
-        return False
+    segMeas1 = segMeasure1(grid, groups, numSquares-len(empties))
+    segR[0].append(segMeas[0][1])
+    segB[0].append(segMeas[1][1])
+    segY[0].append(segMeas[2][1])
+    segO[0].append(segMeas[3][1])
+    segR[1].append(segMeas1[0][1])
+    segB[1].append(segMeas1[1][1])
+    segY[1].append(segMeas1[2][1])
+    segO[1].append(segMeas1[3][1])
+    happyPercList.append(1-len(unhappy)/(numSquares-len(empties)))
+    drawGrid(grid, segMeas, iteration, round((1-len(unhappy)/(numSquares-len(empties)))*100, 5))
+    if len(unhappy) == 0 or len(unhappy)/(numSquares-len(empties)) < .05 or iteration > 149: ##stops when all are happy, 95% are happy, or it runs 150 iterations
+        return [segR, segB, segY, segO, happyPercList]
     else:
         for cell in unhappy:
             x = random.randint(0, len(empties)-1)
@@ -100,7 +152,7 @@ def simHelp(grid, empties, dist, happyRat, numSquares, groups, iteration):
             empties[x] = (cell[0],cell[1])
         #print(segMeasure(grid, groups, numSquares-len(empties)))
         iteration = iteration + 1
-        simHelp(grid, empties, dist, happyRat, numSquares, groups, iteration)
+    return simHelp(grid, empties, dist, happyRat, numSquares, groups, iteration, segR, segB, segY, segO, happyPercList)
 
 
 # =============================================================================
@@ -137,9 +189,9 @@ def drawGrid(grid, segMeas, iteration, happyPerc):
     imgB = Image.new('RGB', (SWATCH_WIDTH, SWATCH_WIDTH), color = B_COLOR)
     imgG = Image.new('RGB', (SWATCH_WIDTH, SWATCH_WIDTH), color = G_COLOR)
     imgO = Image.new('RGB', (SWATCH_WIDTH, SWATCH_WIDTH), color = O_COLOR)
-    img = Image.new('RGB', (SWATCH_WIDTH*len(grid[0])+400, SWATCH_WIDTH*len(grid)), color = E_COLOR)
+    img = Image.new('RGB', (SWATCH_WIDTH*len(grid[0]), SWATCH_WIDTH*len(grid)+30), color = E_COLOR)
     imgD = ImageDraw.Draw(img)
-    fnt = ImageFont.truetype('/Library/Fonts/Arial.ttf', 30)
+    fnt = ImageFont.truetype('/Library/Fonts/Arial.ttf', 20)
 
     #im = create_image(SWATCH_WIDTH*len(grid),SWATCH_WIDTH*len(grid[0]))
 
@@ -156,19 +208,18 @@ def drawGrid(grid, segMeas, iteration, happyPerc):
                 img.paste(imgO, (32*j, 32*i))
             else:
                 pass
-    imgD.text((SWATCH_WIDTH*len(grid[0])+10, 50), "Segregation: " + str(segMeas), font=fnt, fill=(0, 0, 0))
-    imgD.text((SWATCH_WIDTH*len(grid[0])+10, 10), "Iteration: " + str(iteration), font=fnt, fill=(0, 0, 0))
-    imgD.text((SWATCH_WIDTH*len(grid[0])+10, 90), "Percent Happy: " + str(happyPerc), font=fnt, fill=(0, 0, 0))
-    img.show()
+    imgD.text((SWATCH_WIDTH*len(grid[0])/2-270, SWATCH_WIDTH*len(grid)+3), "Segregation: " + str(segMeas[0][0]) + ": " + str(segMeas[0][1]) + ", " + str(segMeas[1][0]) + ": " + str(segMeas[1][1]) + ", " + str(segMeas[2][0]) + ": " + str(segMeas[2][1]) + ", " + str(segMeas[3][0]) + ": " + str(segMeas[3][1]), font=fnt, fill=(0, 0, 0))
+    imgD.text((5, SWATCH_WIDTH*len(grid)+3), "Iteration: " + str(iteration), font=fnt, fill=(0, 0, 0))
+    imgD.text((SWATCH_WIDTH*len(grid[0])-250, SWATCH_WIDTH*len(grid)+3), "Percent Happy: " + str(happyPerc), font=fnt, fill=(0, 0, 0))
+    #img.show()
+    imgPath = "/Users/justinberman/Documents/Williams/Sophomore Year/MATH 433/pictures/" + str(iteration) + ".jpg"
+    img.save(imgPath)
     #img.save('pil_text.png')
             #draw_square(im, j*SWATCH_WIDTH,i*SWATCH_WIDTH,
             #            SWATCH_WIDTH-2, color)
     #save_image(im, filename)
 
-simulate([96, 96], .25, {'r': [.25,.2], 'b': [.25,.2], 'g': [.25,.5], 'o': [.25,.5]}, 3, .5, 0)
-
-
-
+simulate([36, 36], .25, {'r': [.25,.5], 'b': [.25,.5], 'g': [.25,.5], 'o': [.25,.5]}, 3, .5, 0)
 
 
 #36 by 36, neighborhood size 6
